@@ -1,0 +1,104 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <cmath>
+#include <unordered_map>
+#include <chrono>
+
+using namespace std;
+
+struct Node {
+    int x, y;
+    int g, h, f;
+    Node* parent;
+    
+    Node(int _x, int _y, int _g, int _h, Node* _parent = nullptr)
+        : x(_x), y(_y), g(_g), h(_h), f(_g + _h), parent(_parent) {}
+};
+
+struct Compare {
+    bool operator()(const Node* a, const Node* b) {
+        return a->f > b->f;
+    }
+};
+
+int heuristic(int x1, int y1, int x2, int y2) {
+    return abs(x1 - x2) + abs(y1 - y2);
+}
+
+vector<pair<int, int>> get_neighbors(int x, int y) {
+    return {{x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}};
+}
+
+vector<pair<int, int>> a_star(vector<vector<int>>& grid, pair<int, int> start, pair<int, int> goal) {
+    int rows = grid.size(), cols = grid[0].size();
+    priority_queue<Node*, vector<Node*>, Compare> open;
+    unordered_map<int, Node*> all_nodes;
+    
+    Node* start_node = new Node(start.first, start.second, 0, heuristic(start.first, start.second, goal.first, goal.second));
+    open.push(start_node);
+    all_nodes[start.first * cols + start.second] = start_node;
+    
+    while (!open.empty()) {
+        Node* current = open.top();
+        open.pop();
+        
+        if (current->x == goal.first && current->y == goal.second) {
+            vector<pair<int, int>> path;
+            while (current) {
+                path.push_back({current->x, current->y});
+                current = current->parent;
+            }
+            reverse(path.begin(), path.end());
+            return path;
+        }
+        
+        for (auto [nx, ny] : get_neighbors(current->x, current->y)) {
+            if (nx < 0 || ny < 0 || nx >= rows || ny >= cols || grid[nx][ny] == 1) continue;
+            
+            int g_new = current->g + 1;
+            int h_new = heuristic(nx, ny, goal.first, goal.second);
+            int f_new = g_new + h_new;
+            
+            int key = nx * cols + ny;
+            if (all_nodes.find(key) == all_nodes.end() || g_new < all_nodes[key]->g) {
+                Node* neighbor = new Node(nx, ny, g_new, h_new, current);
+                open.push(neighbor);
+                all_nodes[key] = neighbor;
+            }
+        }
+    }
+    return {};
+}
+
+int main() {
+    vector<vector<int>> grid = {
+        {0, 1, 0, 0, 0},
+        {0, 1, 0, 1, 0},
+        {0, 0, 0, 1, 0},
+        {1, 1, 0, 0, 0},
+        {0, 0, 0, 1, 0}
+    };
+    
+    pair<int, int> start = {0, 0};
+    pair<int, int> goal = {4, 4};
+    
+    auto start_time = chrono::high_resolution_clock::now();
+    vector<pair<int, int>> path = a_star(grid, start, goal);
+    auto end_time = chrono::high_resolution_clock::now();
+    
+    chrono::duration<double, milli> duration = end_time - start_time;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+    
+    if (!path.empty()) {
+        cout << "Path found:\n";
+        for (auto [x, y] : path) {
+            cout << "(" << x << ", " << y << ") -> ";
+        }
+        cout << "Goal\n";
+    } else {
+        cout << "No path found." << endl;
+    }
+    
+    return 0;
+}
